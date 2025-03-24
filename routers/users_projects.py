@@ -4,6 +4,7 @@ from db.db import SessionLocal
 from db.models.user_project import UserProject
 from db.models.user import User
 from db.models.project import Project
+from schemas.user_project import UserProjectModel
 
 router = APIRouter()
 
@@ -16,17 +17,16 @@ def get_db():
 
 @router.post("/")
 def add_user_to_project(
-        user_id: int,
-        project_id: int,
+        up: UserProjectModel,
         db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.id == user_id).first()
-    project = db.query(Project).filter(Project.id == project_id).first()
+    user = db.query(User).filter(User.id == up.user_id).first()
+    project = db.query(Project).filter(Project.id == up.project_id).first()
 
     if not user or not project:
         raise HTTPException(status_code=404, detail="Пользователь или проект не найдены")
 
-    user_project = UserProject(user_id=user_id, project_id=project_id)
+    user_project = UserProject(user_id=up.user_id, project_id=up.project_id)
     db.add(user_project)
     db.commit()
 
@@ -34,13 +34,12 @@ def add_user_to_project(
 
 @router.delete("/")
 def remove_user_from_project(
-        user_id: int,
-        project_id: int,
+        up: UserProjectModel,
         db: Session = Depends(get_db)
 ):
     user_project = db.query(UserProject).filter(
-        UserProject.user_id == user_id,
-        UserProject.project_id == project_id
+        UserProject.user_id == up.user_id,
+        UserProject.project_id == up.project_id
     ).first()
 
     if not user_project:

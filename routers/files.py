@@ -13,7 +13,7 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/files/")
+@router.get("/")
 def get_files(
         db: Session = Depends(get_db)
 ):
@@ -40,7 +40,7 @@ def get_files_by_user(
         raise HTTPException(status_code=404, detail="Файлы пользователя не найдены")
     return files
 
-@router.post("/files/")
+@router.post("/")
 def upload_file(
     file: UploadFile,
     project_id: int = Form(...),

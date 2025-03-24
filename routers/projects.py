@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models.project import Project
+from schemas.project import ProjectModel
 
 router = APIRouter()
 
@@ -14,15 +15,14 @@ def get_db():
 
 @router.post("/")
 def create_project(
-        name: str,
-        description: str,
+        project: ProjectModel,
         db: Session = Depends(get_db)
 ):
-    existing_project = db.query(Project).filter(Project.name == name).first()
+    existing_project = db.query(Project).filter(Project.name == project.name).first()
     if existing_project:
         raise HTTPException(status_code=400, detail="Проект с таким именем уже существует")
 
-    new_project = Project(name=name, description=description)
+    new_project = Project(name=project.name, description=project.description)
     db.add(new_project)
     db.commit()
     db.refresh(new_project)

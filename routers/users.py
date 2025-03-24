@@ -4,6 +4,8 @@ from db.db import SessionLocal
 from db.models.user import User
 from db.models.role import Role
 from passlib.context import CryptContext
+from schemas.user import UserModel
+from schemas.role import RoleModel
 
 router = APIRouter()
 
@@ -20,18 +22,16 @@ def get_db():
 
 @router.post("/")
 def create_user(
-        username: str,
-        password: str,
-        role_name: str,
+        user: UserModel,
         db: Session = Depends(get_db)
 ):
-    hashed_password = pwd_context.hash(password)
+    hashed_password = pwd_context.hash(user.password)
 
-    role = db.query(Role).filter(Role.name == role_name).first()
+    role = db.query(Role).filter(Role.name == user.role).first()
     if not role:
         raise HTTPException(status_code=400, detail="Роль не найдена")
 
-    new_user = User(username=username, password_hash=hashed_password, role_id=role.id)
+    new_user = User(username=user.username, password_hash=hashed_password, role_id=role.id)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -40,7 +40,10 @@ def create_user(
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(
+        user_id: int,
+        db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -52,12 +55,16 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{user_id}/role")
-def update_user_role(user_id: int, new_role: str, db: Session = Depends(get_db)):
+def update_user_role(
+        user_id: int,
+        role: RoleModel,
+        db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    role = db.query(Role).filter(Role.name == new_role).first()
+    role = db.query(Role).filter(Role.name == role.name).first()
     if not role:
         raise HTTPException(status_code=400, detail="Роль не найдена")
 
@@ -68,12 +75,17 @@ def update_user_role(user_id: int, new_role: str, db: Session = Depends(get_db))
 
 
 @router.get("/")
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+        db: Session = Depends(get_db)
+):
     return db.query(User).all()
 
 
 @router.get("/{username}")
-def get_user_by_name(username: str, db: Session = Depends(get_db)):
+def get_user_by_name(
+        username: str,
+        db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")

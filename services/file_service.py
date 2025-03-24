@@ -1,6 +1,5 @@
 import os
 from fastapi import UploadFile
-from db.db import SessionLocal
 from sqlalchemy.orm import Session
 from db.models.file import File
 

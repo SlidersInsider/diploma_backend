@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models.role import Role, UserRole
+from schemas.role import RoleModel
 
 router = APIRouter()
 
@@ -14,17 +15,17 @@ def get_db():
 
 @router.post("/")
 def add_role(
-        role_name: str,
+        role: RoleModel,
         db: Session = Depends(get_db)
 ):
-    if role_name not in UserRole.__members__:
+    if role.name not in UserRole.__members__:
         raise HTTPException(status_code=400, detail="Неверное название роли")
 
-    existing_role = db.query(Role).filter(Role.name == role_name).first()
+    existing_role = db.query(Role).filter(Role.name == role.name).first()
     if existing_role:
         raise HTTPException(status_code=400, detail="Роль уже существует")
 
-    new_role = Role(name=UserRole[role_name])
+    new_role = Role(name=UserRole[role.name])
     db.add(new_role)
     db.commit()
     db.refresh(new_role)
@@ -33,10 +34,10 @@ def add_role(
 
 @router.delete("/{role_id}")
 def delete_role(
-        role_id: int,
+        id: int,
         db: Session = Depends(get_db)
 ):
-    role = db.query(Role).filter(Role.id == role_id).first()
+    role = db.query(Role).filter(Role.id == id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Роль не найдена")
 
