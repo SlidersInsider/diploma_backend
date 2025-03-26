@@ -1,7 +1,8 @@
 from fastapi import APIRouter, UploadFile, Form, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
-from services.file_service import save_file, remove_file
+from services.file_service import save_file, remove_file, download_file
 from db.models.file import File
 
 router = APIRouter()
@@ -75,3 +76,18 @@ def get_file_by_id(
         raise HTTPException(status_code=404, detail="Файл не найден")
 
     return file
+
+
+@router.get("/download/{file_id}")
+def download(
+    file_id: int,
+    private_key: str = Form(...),  # Приватный ключ для расшифровки симметричного ключа
+    db: Session = Depends(get_db)
+):
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    decrypted_file_path = download_file(file, private_key)
+
+    return FileResponse(decrypted_file_path, filename=file.filename)
