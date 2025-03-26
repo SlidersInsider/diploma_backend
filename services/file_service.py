@@ -2,17 +2,35 @@ import os
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from db.models.file import File
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Random import get_random_bytes
+import base64
 
 UPLOAD_DIR = "uploads"
 
-# Функция для сохранения файла на сервер
-def save_file(file: UploadFile, project_id: int, user_id: int, db: Session):
-    os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
+def save_file(file: UploadFile, project_id: int, user_id: int, public_key_str: str, db: Session):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Записываем файл в указанную директорию
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
+    # Генерация симметричного ключа (AES)
+    symmetric_key = get_random_bytes(32)  # 256-битный ключ AES
+
+    # Шифрование симметричного ключа публичным ключом (RSA)
+    public_key = RSA.import_key(public_key_str)
+    rsa_cipher = PKCS1_OAEP.new(public_key)
+    encrypted_symmetric_key = rsa_cipher.encrypt(symmetric_key)
+    encrypted_key_b64 = base64.b64encode(encrypted_symmetric_key).decode("utf-8")
+
+    # Шифрование файла симметричным ключом AES
+    aes_cipher = AES.new(symmetric_key, AES.MODE_EAX)
+    ciphertext, tag = aes_cipher.encrypt_and_digest(file.file.read())
+
+    # Запись зашифрованного файла на диск
+    with open(file_path, "wb") as f:
+        f.write(aes_cipher.nonce)  # Сохраняем nonce (инициализационный вектор)
+        f.write(tag)               # Сохраняем тег проверки целостности
+        f.write(ciphertext)        # Сохраняем зашифрованный контент
 
     # Сохраняем запись в БД
     new_file = File(
@@ -20,14 +38,14 @@ def save_file(file: UploadFile, project_id: int, user_id: int, db: Session):
         user_id=user_id,
         filename=file.filename,
         file_path=file_path,
-        encryption_key="s3cr3tK3y"  # Тут должна быть логика шифрования
+        encryption_key=encrypted_key_b64  # Сохраняем зашифрованный симметричный ключ в base64
     )
     db.add(new_file)
     db.commit()
     db.refresh(new_file)
-    db.close()
 
     return new_file
+
 
 def remove_file(file, db: Session):
     # Удаляем физический файл с диска

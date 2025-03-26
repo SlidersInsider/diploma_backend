@@ -45,9 +45,10 @@ def upload_file(
     file: UploadFile,
     project_id: int = Form(...),
     user_id: int = Form(...),
+    public_key: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    saved_file = save_file(file, project_id, user_id, db)
+    saved_file = save_file(file, project_id, user_id, public_key, db)
     return {"message": "Файл загружен!", "file": saved_file}
 
 

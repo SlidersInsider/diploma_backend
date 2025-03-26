@@ -9,4 +9,4 @@ class File(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    encryption_key = Column(String(255), nullable=False)
+    encryption_key = Column(String(4096), nullable=False)
