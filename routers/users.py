@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models.user import User
 from db.models.role import Role
+from db.models.request import Request
 from passlib.context import CryptContext
 from schemas.user import UserModel
 from schemas.role import RoleModel
+from schemas.request import RequestModel
 
 router = APIRouter()
 
@@ -103,3 +105,17 @@ def get_user_by_id(
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     return user
+
+@router.post("/request/")
+def create_request(request_data: RequestModel, db: Session = Depends(get_db)):
+    new_request = Request(
+        user_id=request_data.user_id,
+        username=request_data.username,
+        project_id=request_data.project_id,
+        manager_id=request_data.manager_id
+    )
+    db.add(new_request)
+    db.commit()
+    db.refresh(new_request)
+
+    return {"message": "Запрос успешно создан", "request": new_request}

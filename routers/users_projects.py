@@ -4,6 +4,7 @@ from db.db import SessionLocal
 from db.models.user_project import UserProject
 from db.models.user import User
 from db.models.project import Project
+from db.models.request import Request
 from schemas.user_project import UserProjectModel
 
 router = APIRouter()
@@ -28,9 +29,19 @@ def add_user_to_project(
 
     user_project = UserProject(user_id=up.user_id, project_id=up.project_id)
     db.add(user_project)
+
+    request = db.query(Request).filter(
+        Request.user_id == up.user_id,
+        Request.project_id == up.project_id
+    ).first()
+
+    if request:
+        db.delete(request)
+
     db.commit()
 
     return {"message": "Пользователь успешно добавлен на проект"}
+
 
 @router.delete("/")
 def remove_user_from_project(

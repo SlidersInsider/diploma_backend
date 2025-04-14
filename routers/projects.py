@@ -22,12 +22,17 @@ def create_project(
     if existing_project:
         raise HTTPException(status_code=400, detail="Проект с таким именем уже существует")
 
-    new_project = Project(name=project.name, description=project.description)
+    new_project = Project(
+        name=project.name,
+        description=project.description,
+        creator_id=project.creator_id
+    )
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
 
     return {"message": "Проект создан", "project": new_project}
+
 
 @router.delete("/{project_id}")
 def delete_project(

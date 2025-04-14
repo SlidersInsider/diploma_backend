@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from db.db import Base
 
 class Project(Base):
@@ -7,3 +7,4 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
