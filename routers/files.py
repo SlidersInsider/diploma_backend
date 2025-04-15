@@ -78,16 +78,17 @@ def get_file_by_id(
     return file
 
 
-@router.get("/download/{file_id}")
+@router.post("/download/{file_id}")
 def download(
     file_id: int,
-    private_key: str = Form(...),  # Приватный ключ для расшифровки симметричного ключа
+    user_id: int = Form(...),
+    private_key: str = Form(...),  # Приватный ключ пользователя
     db: Session = Depends(get_db)
 ):
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="Файл не найден")
 
-    decrypted_file_path = download_file(file, private_key)
+    decrypted_file_path = download_file(file, user_id, private_key, db)
 
     return FileResponse(decrypted_file_path, filename=file.filename)

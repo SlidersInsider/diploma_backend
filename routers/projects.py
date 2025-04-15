@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
+from db.models import User, Role
 from db.models.project import Project
 from schemas.project import ProjectModel
 
@@ -18,10 +19,25 @@ def create_project(
         project: ProjectModel,
         db: Session = Depends(get_db)
 ):
+    # Проверка на существование проекта с таким именем
     existing_project = db.query(Project).filter(Project.name == project.name).first()
     if existing_project:
         raise HTTPException(status_code=400, detail="Проект с таким именем уже существует")
 
+    # Получаем пользователя
+    user = db.query(User).filter(User.id == project.creator_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # Проверяем его роль
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Роль пользователя не найдена")
+
+    if role.name == "worker":
+        raise HTTPException(status_code=403, detail="Рабочий не может создавать проект")
+
+    # Создание проекта
     new_project = Project(
         name=project.name,
         description=project.description,
@@ -32,7 +48,6 @@ def create_project(
     db.refresh(new_project)
 
     return {"message": "Проект создан", "project": new_project}
-
 
 @router.delete("/{project_id}")
 def delete_project(
