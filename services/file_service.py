@@ -65,7 +65,7 @@ def save_file(file: UploadFile, project_id: int, user_id: int, public_key_str: s
 
 
         try:
-            decoded_part_pem = base64.b64decode(public_key_str).decode("utf-8")
+            decoded_part_pem = base64.b64decode(participant.public_key).decode("utf-8")
             user_pubkey = RSA.import_key(decoded_part_pem)
             rsa_cipher = PKCS1_OAEP.new(user_pubkey)
             encrypted_key = rsa_cipher.encrypt(symmetric_key)
