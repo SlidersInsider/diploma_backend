@@ -94,8 +94,7 @@ def remove_file(file, db: Session):
     db.delete(file)
     db.commit()
 
-def download_file(file, user_id: int, private_key_str: str, db: Session):
-    # Получаем нужный зашифрованный ключ из таблицы keys
+def download_file(file, user_id: int, db: Session) -> dict:
     key_entry = db.query(Key).filter(
         Key.file_id == file.id,
         Key.user_id == user_id
@@ -104,34 +103,17 @@ def download_file(file, user_id: int, private_key_str: str, db: Session):
     if not key_entry:
         raise HTTPException(status_code=403, detail="У вас нет доступа к этому файлу")
 
-    # Расшифровываем симметричный ключ приватным RSA-ключом
-    decoded_pem = base64.b64decode(private_key_str).decode("utf-8")
-    private_key = RSA.import_key(decoded_pem)
-    rsa_cipher = PKCS1_OAEP.new(private_key)
+    if not os.path.exists(file.file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден на диске")
 
-    encrypted_key_bytes = base64.b64decode(key_entry.encrypted_key)
-    try:
-        symmetric_key = rsa_cipher.decrypt(encrypted_key_bytes)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Неверный приватный ключ")
-
-    # Открываем файл и расшифровываем
     with open(file.file_path, "rb") as f:
-        nonce = f.read(16)
-        tag = f.read(16)
-        ciphertext = f.read()
+        encrypted_file_data = f.read()
 
-    aes_cipher = AES.new(symmetric_key, AES.MODE_EAX, nonce=nonce)
-    decrypted_data = aes_cipher.decrypt_and_verify(ciphertext, tag)
-
-    # Сохраняем расшифрованный файл
-    decrypted_file_path = f"downloads/decrypted_{file.filename}"
-    os.makedirs("downloads", exist_ok=True)
-
-    with open(decrypted_file_path, "wb") as decrypted_file:
-        decrypted_file.write(decrypted_data)
-
-    return decrypted_file_path
+    return {
+        "filename": file.filename,
+        "encrypted_key": key_entry.encrypted_key,  # уже в base64
+        "file_data": base64.b64encode(encrypted_file_data).decode("utf-8")
+    }
 
 
 def share_project_keys_with_user(project_id: int, new_user_id: int, user_public_key_str: str, manager_private_key_str: str, db):

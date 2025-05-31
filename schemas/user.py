@@ -4,6 +4,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role_id: int  # Указываем роль при регистрации
+    public_key: str
 
 class UserLogin(BaseModel):
     username: str
