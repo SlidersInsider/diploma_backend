@@ -1,10 +1,6 @@
-import os
-
-from Crypto.Signature.pss import MGF1
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
-from db.models import User, UserProject
 from db.models.file import File
 from db.models.key import Key
 
@@ -20,11 +16,9 @@ def save_file(file: UploadFile, project_id: int, user_id: int, encrypted_key_b64
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # ✅ Сохраняем файл как есть (он уже зашифрован на клиенте)
     with open(file_path, "wb") as f:
         f.write(file.file.read())
 
-    # ✅ Сохраняем файл в БД
     new_file = File(
         project_id=project_id,
         user_id=user_id,
@@ -36,7 +30,6 @@ def save_file(file: UploadFile, project_id: int, user_id: int, encrypted_key_b64
     db.commit()
     db.refresh(new_file)
 
-    # ✅ Сохраняем ключ для владельца
     db.add(Key(
         user_id=user_id,
         file_id=new_file.id,
@@ -49,11 +42,9 @@ def save_file(file: UploadFile, project_id: int, user_id: int, encrypted_key_b64
 
 
 def remove_file(file, db: Session):
-    # Удаляем физический файл с диска
     if os.path.exists(file.file_path):
         os.remove(file.file_path)
 
-    # Удаляем запись из базы данных
     db.delete(file)
     db.commit()
 
@@ -74,7 +65,7 @@ def download_file(file, user_id: int, db: Session) -> dict:
 
     return {
         "filename": file.filename,
-        "encrypted_key": key_entry.encrypted_key,  # уже в base64
+        "encrypted_key": key_entry.encrypted_key,
         "file_data": base64.b64encode(encrypted_file_data).decode("utf-8")
     }
 
@@ -91,15 +82,12 @@ def share_project_keys_with_user(project_id: int, new_user_id: int, user_public_
     files = db.query(File).filter(File.project_id == project_id).all()
 
     for file in files:
-        # Дешифруем симметричный ключ
         encrypted_sym_key_bytes = base64.b64decode(file.encryption_key)
         sym_key = rsa_decryptor.decrypt(encrypted_sym_key_bytes)
 
-        # Шифруем симметричный ключ для нового пользователя
         re_encrypted_key = rsa_encryptor.encrypt(sym_key)
         re_encrypted_key_b64 = base64.b64encode(re_encrypted_key).decode("utf-8")
 
-        # Добавляем запись в таблицу keys
         key_entry = Key(
             user_id=new_user_id,
             file_id=file.id,

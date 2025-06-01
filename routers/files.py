@@ -1,5 +1,4 @@
 from fastapi import APIRouter, UploadFile, Form, Depends, HTTPException
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models import User, UserProject
@@ -52,7 +51,6 @@ def upload_file(
 ):
     saved_file = save_file(file, project_id, user_id, public_key, db)
 
-    # ✅ Получаем всех пользователей проекта
     project_users = db.query(User).join(UserProject).filter(UserProject.project_id == project_id).all()
 
     return {
@@ -63,8 +61,6 @@ def upload_file(
             for user in project_users
         ]
     }
-
-
 
 @router.delete("/{file_id}")
 def delete_file(
@@ -89,7 +85,6 @@ def get_file_by_id(
         raise HTTPException(status_code=404, detail="Файл не найден")
 
     return file
-
 
 @router.post("/download/{file_id}")
 def download(

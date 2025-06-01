@@ -3,7 +3,7 @@ from pydantic import BaseModel
 class UserCreate(BaseModel):
     username: str
     password: str
-    role_id: int  # Указываем роль при регистрации
+    role_id: int
     public_key: str
 
 class UserLogin(BaseModel):

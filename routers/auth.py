@@ -26,15 +26,12 @@ def register(
     if db.query(User).filter(User.username == user_data.username).first():
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
 
-    # Получаем роль
     role_id = user_data.role_id if user_data.role_id else db.query(Role).filter(Role.name == "worker").first().id
 
     if not role_id:
         raise HTTPException(status_code=400, detail="Указанная роль не существует")
 
-    # Сохраняем переданный публичный ключ
     try:
-        # Проверка, что ключ валидный (опционально)
         RSA.import_key(base64.b64decode(user_data.public_key))
     except Exception:
         raise HTTPException(status_code=400, detail="Недопустимый формат публичного ключа")
@@ -43,7 +40,7 @@ def register(
         username=user_data.username,
         password_hash=hash_password(user_data.password),
         role_id=role_id,
-        public_key=user_data.public_key  # сохраняем ключ как есть (предполагается, что он в base64)
+        public_key=user_data.public_key
     )
 
     db.add(new_user)
@@ -61,16 +58,13 @@ def register(
     if db.query(User).filter(User.username == user_data.username).first():
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
 
-    # Получаем роль
     role_id = user_data.role_id or db.query(Role).filter(Role.name == "worker").first()
     if not role_id:
         raise HTTPException(status_code=400, detail="Указанная роль не существует")
     if not isinstance(role_id, int):
         role_id = role_id.id
 
-    # Сохраняем переданный публичный ключ
     try:
-        # Проверка, что ключ валидный (опционально)
         RSA.import_key(base64.b64decode(user_data.public_key))
     except Exception:
         raise HTTPException(status_code=400, detail="Недопустимый формат публичного ключа")
@@ -79,7 +73,7 @@ def register(
         username=user_data.username,
         password_hash=hash_password(user_data.password),
         role_id=role_id,
-        public_key=user_data.public_key  # сохраняем ключ как есть (предполагается, что он в base64)
+        public_key=user_data.public_key
     )
 
     db.add(new_user)

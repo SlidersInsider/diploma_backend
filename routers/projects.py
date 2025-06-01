@@ -19,17 +19,14 @@ def create_project(
         project: ProjectModel,
         db: Session = Depends(get_db)
 ):
-    # Проверка на существование проекта с таким именем
     existing_project = db.query(Project).filter(Project.name == project.name).first()
     if existing_project:
         raise HTTPException(status_code=400, detail="Проект с таким именем уже существует")
 
-    # Получаем пользователя
     user = db.query(User).filter(User.id == project.creator_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    # Проверяем его роль
     role = db.query(Role).filter(Role.id == user.role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Роль пользователя не найдена")
@@ -37,7 +34,6 @@ def create_project(
     if role.name == "worker":
         raise HTTPException(status_code=403, detail="Рабочий не может создавать проект")
 
-    # Создание проекта
     new_project = Project(
         name=project.name,
         description=project.description,
@@ -47,7 +43,6 @@ def create_project(
     db.commit()
     db.refresh(new_project)
 
-    # Добавляем создателя как участника проекта
     user_project = UserProject(user_id=project.creator_id, project_id=new_project.id)
     db.add(user_project)
     db.commit()

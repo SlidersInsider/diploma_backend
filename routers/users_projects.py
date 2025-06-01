@@ -21,8 +21,8 @@ def get_db():
 def add_user_to_project(
         user_id: int = Form(...),
         project_id: int = Form(...),
-        user_public_key: str = Form(...),       # публичный ключ нового пользователя
-        manager_private_key: str = Form(...),   # приватный ключ руководителя
+        user_public_key: str = Form(...),
+        manager_private_key: str = Form(...),
         db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(User.id == user_id).first()
@@ -42,7 +42,6 @@ def add_user_to_project(
     if request:
         db.delete(request)
 
-    # Перешифровка ключей файлов проекта для нового пользователя
     try:
         share_project_keys_with_user(
             project_id=project_id,
