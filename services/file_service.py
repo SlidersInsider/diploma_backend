@@ -1,42 +1,30 @@
 import os
+
+from Crypto.Signature.pss import MGF1
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
 from db.models import User, UserProject
 from db.models.file import File
 from db.models.key import Key
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES, PKCS1_OAEP
-from Crypto.Random import get_random_bytes
-import base64
 
 
 UPLOAD_DIR = "uploads"
 
-def save_file(file: UploadFile, project_id: int, user_id: int, public_key_str: str, db: Session):
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+import base64
+import os
+
+def save_file(file: UploadFile, project_id: int, user_id: int, encrypted_key_b64: str, db: Session):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Генерация симметричного ключа
-    symmetric_key = get_random_bytes(32)
-
-    # Шифруем файл для владельца
-    decoded_pem = base64.b64decode(public_key_str).decode("utf-8")
-    public_key = RSA.import_key(decoded_pem)
-    rsa_cipher = PKCS1_OAEP.new(public_key)
-    encrypted_key = rsa_cipher.encrypt(symmetric_key)
-    encrypted_key_b64 = base64.b64encode(encrypted_key).decode("utf-8")
-
-    # Шифруем содержимое файла AES
-    aes_cipher = AES.new(symmetric_key, AES.MODE_EAX)
-    ciphertext, tag = aes_cipher.encrypt_and_digest(file.file.read())
-
+    # ✅ Сохраняем файл как есть (он уже зашифрован на клиенте)
     with open(file_path, "wb") as f:
-        f.write(aes_cipher.nonce)
-        f.write(tag)
-        f.write(ciphertext)
+        f.write(file.file.read())
 
-    # Сохраняем файл
+    # ✅ Сохраняем файл в БД
     new_file = File(
         project_id=project_id,
         user_id=user_id,
@@ -48,7 +36,7 @@ def save_file(file: UploadFile, project_id: int, user_id: int, public_key_str: s
     db.commit()
     db.refresh(new_file)
 
-    # Сохраняем ключ для владельца
+    # ✅ Сохраняем ключ для владельца
     db.add(Key(
         user_id=user_id,
         file_id=new_file.id,
@@ -56,33 +44,8 @@ def save_file(file: UploadFile, project_id: int, user_id: int, public_key_str: s
         encrypted_key=encrypted_key_b64
     ))
 
-    # Получаем всех участников проекта
-    project_users = db.query(User).join(UserProject).filter(UserProject.project_id == project_id).all()
-
-    for participant in project_users:
-        if participant.id == user_id or not participant.public_key:
-            continue  # Пропускаем владельца и тех, у кого нет публичного ключа
-
-
-        try:
-            decoded_part_pem = base64.b64decode(participant.public_key).decode("utf-8")
-            user_pubkey = RSA.import_key(decoded_part_pem)
-            rsa_cipher = PKCS1_OAEP.new(user_pubkey)
-            encrypted_key = rsa_cipher.encrypt(symmetric_key)
-            encrypted_key_b64 = base64.b64encode(encrypted_key).decode("utf-8")
-
-            db.add(Key(
-                user_id=participant.id,
-                file_id=new_file.id,
-                project_id=project_id,
-                encrypted_key=encrypted_key_b64
-            ))
-        except Exception as e:
-            print(f"Ошибка при шифровании ключа для пользователя {participant.id}: {e}")
-
     db.commit()
     return new_file
-
 
 
 def remove_file(file, db: Session):

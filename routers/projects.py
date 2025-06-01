@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
-from db.models import User, Role
+from db.models import User, Role, UserProject
 from db.models.project import Project
 from schemas.project import ProjectModel
 
@@ -46,6 +46,11 @@ def create_project(
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
+
+    # Добавляем создателя как участника проекта
+    user_project = UserProject(user_id=project.creator_id, project_id=new_project.id)
+    db.add(user_project)
+    db.commit()
 
     return {"message": "Проект создан", "project": new_project}
 
@@ -93,3 +98,11 @@ def get_project_by_id(
 
     return project
 
+@router.get("/user/{user_id}")
+def get_user_projects(user_id: int, db: Session = Depends(get_db)):
+    user_projects = db.query(Project).join(UserProject).filter(UserProject.user_id == user_id).all()
+
+    if not user_projects:
+        raise HTTPException(status_code=404, detail="Проекты для пользователя не найдены")
+
+    return user_projects

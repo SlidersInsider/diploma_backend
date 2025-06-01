@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, Form, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
+from db.models import User, UserProject
 from services.file_service import save_file, remove_file, download_file
 from db.models.file import File
 
@@ -50,7 +51,19 @@ def upload_file(
     db: Session = Depends(get_db)
 ):
     saved_file = save_file(file, project_id, user_id, public_key, db)
-    return {"message": "Файл загружен!", "file": saved_file}
+
+    # ✅ Получаем всех пользователей проекта
+    project_users = db.query(User).join(UserProject).filter(UserProject.project_id == project_id).all()
+
+    return {
+        "message": "Файл загружен!",
+        "file_id": saved_file.id,
+        "project_users": [
+            {"id": user.id, "username": user.username, "public_key": user.public_key}
+            for user in project_users
+        ]
+    }
+
 
 
 @router.delete("/{file_id}")
