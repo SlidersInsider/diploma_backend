@@ -4,6 +4,7 @@ from db.db import SessionLocal
 from db.models import User, UserProject
 from services.file_service import save_file, remove_file, download_file
 from db.models.file import File
+import os
 
 router = APIRouter()
 
@@ -97,3 +98,25 @@ def download(
         raise HTTPException(status_code=404, detail="Файл не найден")
 
     return download_file(file, user_id, db)
+
+@router.put("/update-file/{file_id}")
+def update_file(
+    file_id: int,
+    file: UploadFile,
+    db: Session = Depends(get_db)
+):
+    existing_file = db.query(File).filter(File.id == file_id).first()
+    if not existing_file:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    file_path = existing_file.file_path
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден на сервере")
+
+    with open(file_path, "wb") as f:
+        content = file.file.read()
+        f.write(content)
+
+    return {"message": "Файл успешно обновлен", "file_id": existing_file.id}
+
